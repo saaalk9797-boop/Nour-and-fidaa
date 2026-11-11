@@ -19,6 +19,9 @@ import com.nourfadaa.ui.screens.LessonListScreen
 import com.nourfadaa.ui.screens.LessonScreen
 import com.nourfadaa.ui.screens.SectionScreen
 
+// الأقسام التي لها دروس حقيقية حاليًا. أضف هنا كل قسم جديد عند إضافة محتواه.
+private val lessonSections = setOf(Section.ESSENTIALS, Section.PRAYER)
+
 @Composable
 fun NourNavHost(repo: ChildRepository) {
     val nav = rememberNavController()
@@ -45,7 +48,7 @@ fun NourNavHost(repo: ChildRepository) {
             ChildHomeScreen(
                 child = child,
                 onSection = {
-                    if (it == Section.ESSENTIALS) nav.navigate("lessons/$childId")
+                    if (it in lessonSections) nav.navigate("lessons/$childId/${it.id}")
                     else nav.navigate("section/$childId/${it.id}")
                 },
                 onSwitchChild = { nav.popBackStack("picker", inclusive = false) }
@@ -53,38 +56,44 @@ fun NourNavHost(repo: ChildRepository) {
         }
 
         composable(
-            route = "lessons/{childId}",
-            arguments = listOf(navArgument("childId") { type = NavType.LongType })
+            route = "lessons/{childId}/{sectionId}",
+            arguments = listOf(
+                navArgument("childId") { type = NavType.LongType },
+                navArgument("sectionId") { type = NavType.StringType }
+            )
         ) { entry ->
             val childId = entry.arguments!!.getLong("childId")
+            val sectionId = entry.arguments!!.getString("sectionId")!!
             val vm: LessonListViewModel = viewModel(
-                key = "lessons$childId",
-                factory = VmFactory { LessonListViewModel(repo, content, childId, Section.ESSENTIALS.id) }
+                key = "lessons$childId$sectionId",
+                factory = VmFactory { LessonListViewModel(repo, content, childId, sectionId) }
             )
             val child by vm.child.collectAsStateWithLifecycle()
             val done by vm.done.collectAsStateWithLifecycle()
             val age = child?.ageYears ?: 0
             LessonListScreen(
-                title = Section.ESSENTIALS.title,
+                title = Section.fromId(sectionId).title,
                 lessons = vm.lessons.filter { it.minAge <= age },
                 completedIds = done,
-                onOpen = { nav.navigate("lesson/$childId/$it") },
+                onOpen = { nav.navigate("lesson/$childId/$sectionId/$it") },
                 onBack = { nav.popBackStack() }
             )
         }
 
         composable(
-            route = "lesson/{childId}/{lessonId}",
+            route = "lesson/{childId}/{sectionId}/{lessonId}",
             arguments = listOf(
                 navArgument("childId") { type = NavType.LongType },
+                navArgument("sectionId") { type = NavType.StringType },
                 navArgument("lessonId") { type = NavType.StringType }
             )
         ) { entry ->
             val childId = entry.arguments!!.getLong("childId")
+            val sectionId = entry.arguments!!.getString("sectionId")!!
             val lessonId = entry.arguments!!.getString("lessonId")!!
             val vm: LessonViewModel = viewModel(
                 key = "lesson$childId$lessonId",
-                factory = VmFactory { LessonViewModel(repo, content, childId, Section.ESSENTIALS.id, lessonId) }
+                factory = VmFactory { LessonViewModel(repo, content, childId, sectionId, lessonId) }
             )
             val child by vm.child.collectAsStateWithLifecycle()
             val reward by vm.reward.collectAsStateWithLifecycle()
